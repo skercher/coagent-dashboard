@@ -6,15 +6,15 @@ import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 export default function AgentSettingsPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -25,7 +25,7 @@ export default function AgentSettingsPage() {
             Provide the LLM with domain-specific information to help it answer questions more accurately.
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+        <Button onClick={() => setIsSheetOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" /> Add item
         </Button>
       </div>
@@ -50,25 +50,13 @@ export default function AgentSettingsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle>Add knowledge base item</DialogTitle>
-                <DialogDescription>Add a new URL to the knowledge base</DialogDescription>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-4 top-4"
-                onClick={() => setIsDialogOpen(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </DialogHeader>
-          <div className="space-y-4">
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="w-[800px] sm:w-[600px]">
+          <SheetHeader>
+            <SheetTitle>Add knowledge base item</SheetTitle>
+            <SheetDescription>Add a new URL to the knowledge base</SheetDescription>
+          </SheetHeader>
+          <div className="flex flex-col gap-6 py-6">
             <div>
               <label className="text-sm font-medium">Item type</label>
               <div className="flex gap-2 mt-1">
@@ -87,8 +75,8 @@ export default function AgentSettingsPage() {
             </div>
             <Button className="w-full">Add to knowledge base</Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 } 

@@ -7,7 +7,8 @@ import {
   PanelLeft,
   Settings,
   ShoppingCart,
-  Users2
+  Users2,
+  LogOut
 } from 'lucide-react';
 
 import {
@@ -31,6 +32,7 @@ import { VercelLogo } from '@/components/icons';
 import Providers from './providers';
 import { NavItem } from './nav-item';
 import { SearchInput } from './search';
+import { LogoutButton } from './components/logout-button';
 
 export default function DashboardLayout({
   children
@@ -93,6 +95,12 @@ function DesktopNav() {
             </Link>
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <LogoutButton />
+          </TooltipTrigger>
+          <TooltipContent side="right">Log out</TooltipContent>
         </Tooltip>
       </nav>
     </aside>
