@@ -93,4 +93,29 @@ export async function getAvailableAgents() {
     console.error('Error fetching agents:', error);
     throw error;
   }
+}
+
+export async function getConversationAudio(conversationId: string) {
+  try {
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`,
+      {
+        method: 'GET',
+        headers: {
+          'xi-api-key': ELEVEN_API_KEY as string,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch conversation audio');
+    }
+
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.error('Error fetching conversation audio:', error);
+    throw error;
+  }
 } 

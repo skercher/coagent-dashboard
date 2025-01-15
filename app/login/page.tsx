@@ -3,13 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { supabase } from '../../services/supabaseClient';
 
@@ -68,18 +62,29 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center p-4 bg-muted/50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">
-            {isSignUp ? 'Create an account' : 'Welcome back'}
-          </CardTitle>
-          <CardDescription>
-            {isSignUp 
-              ? 'Enter your email below to create your account'
-              : 'Enter your email and password to login'
-            }
-          </CardDescription>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+      <Card className="w-[380px] bg-white/10 backdrop-blur-lg border-white/20">
+        <CardHeader className="space-y-4 flex flex-col items-center">
+          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+            <svg
+              className="h-10 w-10 text-primary-foreground"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+              <circle cx="8" cy="8" r="2"/>
+              <circle cx="16" cy="8" r="2"/>
+              <circle cx="12" cy="16" r="2"/>
+            </svg>
+          </div>
+          <div className="text-center">
+            <CardTitle className="text-2xl font-bold text-white">
+              Co Working Agent Dashboard
+            </CardTitle>
+            <CardDescription className="text-zinc-400 mt-2">
+              {isSignUp ? 'Create your account' : 'Sign in to your account'}
+            </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           {error && (
@@ -94,14 +99,19 @@ export default function LoginPage() {
                 type="email"
                 placeholder="Email"
                 required
+                className="bg-white/10 border-white/20 text-white placeholder:text-zinc-400"
               />
               <Input
                 name="password"
                 type="password"
                 placeholder="Password"
                 required
+                className="bg-white/10 border-white/20 text-white placeholder:text-zinc-400"
               />
-              <Button className="w-full" disabled={loading}>
+              <Button 
+                className="w-full bg-white/10 hover:bg-white/20 text-white" 
+                disabled={loading}
+              >
                 {loading 
                   ? (isSignUp ? 'Creating account...' : 'Signing in...') 
                   : (isSignUp ? 'Create account' : 'Sign in')
@@ -109,9 +119,11 @@ export default function LoginPage() {
               </Button>
             </div>
           </form>
+        </CardContent>
+        <CardFooter className="flex flex-col items-center gap-4">
           <Button
             variant="link"
-            className="w-full mt-4"
+            className="text-zinc-400 hover:text-white"
             onClick={() => setIsSignUp(!isSignUp)}
           >
             {isSignUp 
@@ -119,7 +131,8 @@ export default function LoginPage() {
               : "Don't have an account? Sign up"
             }
           </Button>
-        </CardContent>
+          <p className="text-sm text-zinc-400">Powered by Co Work Agent</p>
+        </CardFooter>
       </Card>
     </div>
   );

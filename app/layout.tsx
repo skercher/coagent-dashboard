@@ -4,7 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from 'sonner';
 
 export const metadata = {
-  title: 'Next.js App Router + NextAuth + Tailwind CSS',
+  title: 'Co Work Agent Dashboard',
   description:
     'A user admin dashboard configured with Next.js, Postgres, NextAuth, Tailwind CSS, TypeScript, and Prettier.'
 };

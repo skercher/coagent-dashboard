@@ -8,7 +8,8 @@ import {
   Settings,
   ShoppingCart,
   Users2,
-  LogOut
+  LogOut,
+  Robot
 } from 'lucide-react';
 
 import {
@@ -64,20 +65,29 @@ function DesktopNav() {
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
       <nav className="flex flex-col items-center gap-4 px-2 sm:py-5">
         <Link
-          href="https://vercel.com/templates/next.js/admin-dashboard-tailwind-postgres-react-nextjs"
+          href="/"
           className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
         >
-          <VercelLogo className="h-3 w-3 transition-all group-hover:scale-110" />
-          <span className="sr-only">Acme Inc</span>
+          <svg
+            className="h-5 w-5 transition-all group-hover:scale-110"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+            <circle cx="8" cy="8" r="2"/>
+            <circle cx="16" cy="8" r="2"/>
+            <circle cx="12" cy="16" r="2"/>
+          </svg>
+          <span className="sr-only">AI Chat Dashboard</span>
         </Link>
 
         <NavItem href="/" label="Dashboard">
           <Home className="h-5 w-5" />
         </NavItem>
 
-        <NavItem href="/chat" label="Chat Transcripts">
+        {/* <NavItem href="/chat" label="Chat Transcripts">
           <Users2 className="h-5 w-5" />
-        </NavItem>
+        </NavItem> */}
 
         <NavItem href="/agent" label="Agent Settings">
           <Settings className="h-5 w-5" />
