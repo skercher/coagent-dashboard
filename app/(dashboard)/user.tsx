@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
+import { LogoutButton } from './components/logout-button';
 
 export async function User() {
   let session = await auth();
@@ -51,7 +52,7 @@ export async function User() {
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem>
-            <Link href="/login">Sign In</Link>
+            <LogoutButton />
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

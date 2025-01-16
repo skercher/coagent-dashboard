@@ -7,6 +7,7 @@ import { getConversations, getConversationById, getAvailableAgents, getConversat
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Play } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { X } from 'lucide-react';
 
 interface Message {
   role: string;
@@ -215,16 +216,16 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
+    <div className="flex flex-col min-h-screen w-full p-2 sm:p-4">
+      <Card className="flex-1 border-0 sm:border w-full">
+        <CardHeader className="px-2 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
               <CardTitle>Chat Transcripts</CardTitle>
               <CardDescription>View all chat transcripts here.</CardDescription>
             </div>
             <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Filter by agent" />
               </SelectTrigger>
               <SelectContent>
@@ -238,76 +239,93 @@ export default function ChatPage() {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
-          <div ref={containerRef} className="space-y-4 max-h-[70vh] overflow-y-auto">
-            {error && (
-              <div className="text-red-500 p-4 text-center">
-                {error}
-              </div>
-            )}
-            
-            {filteredConversations.length === 0 && !error ? (
-              <div className="text-center py-4 text-muted-foreground">
-                No conversations found
-              </div>
-            ) : (
-              filteredConversations.map((chat, index) => (
-                <div
-                  key={`${chat.id}-${index}`}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => handleChatSelect(chat.id, chat.agent)}
-                >
-                  <div className="flex items-center gap-4">
-                    <div>
-                      <p className="font-medium">{chat.date}</p>
-                      <p className="text-sm text-muted-foreground">{chat.agent}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex items-center gap-2">
-                      <span>{chat.messages} messages</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span>{chat.duration}</span>
-                    </div>
-                    <span className={`text-sm font-medium ${
-                      chat.success === 'success' ? 'text-green-500' : 'text-red-500'
-                    }`}>
-                      {chat.status}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-            
-            {/* Loading indicator and observer target */}
-            <div 
-              ref={observerTarget} 
-              className="py-4 text-center h-20 flex items-center justify-center"
-            >
-              {isLoading && (
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" />
+        <CardContent className="flex-1 px-2 sm:px-6">
+          <div 
+            ref={containerRef} 
+            className="h-[calc(100vh-16rem)] sm:h-[calc(100vh-14rem)] overflow-y-auto w-full"
+          >
+            <div className="space-y-2 sm:space-y-4 w-full">
+              {error && (
+                <div className="text-red-500 p-4 text-center">
+                  {error}
                 </div>
               )}
+              
+              {filteredConversations.length === 0 && !error ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  No conversations found
+                </div>
+              ) : (
+                filteredConversations.map((chat, index) => (
+                  <div
+                    key={`${chat.id}-${index}`}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer gap-2 sm:gap-4 w-full"
+                    onClick={() => handleChatSelect(chat.id, chat.agent)}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                      <div>
+                        <p className="font-medium text-sm sm:text-base">{chat.date}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{chat.agent}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>{chat.messages} messages</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span>{chat.duration}</span>
+                      </div>
+                      <span className={`text-xs sm:text-sm font-medium ${
+                        chat.success === 'success' ? 'text-green-500' : 'text-red-500'
+                      }`}>
+                        {chat.status}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+              
+              {/* Loading indicator */}
+              <div 
+                ref={observerTarget} 
+                className="py-2 sm:py-4 text-center h-16 sm:h-20 flex items-center justify-center"
+              >
+                {isLoading && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <div className="w-2 h-2 bg-primary/50 rounded-full animate-bounce" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent className="w-[800px] sm:w-[600px] flex flex-col">
-          <SheetHeader>
-            <SheetTitle>Chat Details</SheetTitle>
+        <SheetContent 
+          className="fixed right-0 w-full sm:w-[450px] p-0 sm:p-6 overflow-y-auto border-l"
+          side="right"
+        >
+          <SheetHeader className="p-4 sm:p-0 border-b sm:border-0">
+            <div className="flex items-center justify-between">
+              <SheetTitle>Chat Details</SheetTitle>
+              {/* <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setIsSheetOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button> */}
+            </div>
             {selectedChat && (
-              <p className="text-sm text-muted-foreground font-mono">
+              <p className="text-sm text-muted-foreground font-mono break-all">
                 {selectedChat.conversation_id}
               </p>
             )}
           </SheetHeader>
-          <div className="overflow-y-auto flex-1">
+          <div className="overflow-y-auto flex-1 p-4 sm:p-0">
             {selectedChat && selectedChat.transcript && (
               <div className="flex flex-col gap-6 py-6">
                 <div className="space-y-4">

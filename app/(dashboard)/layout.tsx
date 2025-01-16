@@ -9,7 +9,6 @@ import {
   ShoppingCart,
   Users2,
   LogOut,
-  Robot
 } from 'lucide-react';
 
 import {
@@ -21,7 +20,7 @@ import {
   BreadcrumbSeparator
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import {
   Tooltip,
   TooltipContent,
@@ -34,6 +33,8 @@ import Providers from './providers';
 import { NavItem } from './nav-item';
 import { SearchInput } from './search';
 import { LogoutButton } from './components/logout-button';
+import { signOut } from 'next-auth/react';
+import { MobileLogoutButton } from './components/mobile-logout-button';
 
 export default function DashboardLayout({
   children
@@ -42,15 +43,15 @@ export default function DashboardLayout({
 }) {
   return (
     <Providers>
-      <main className="flex min-h-screen w-full flex-col bg-muted/40">
+      <main className="flex min-h-screen w-full flex-col">
         <DesktopNav />
-        <div className="flex flex-col sm:gap-4 sm:py-4 sm:pl-14">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+        <div className="flex flex-col flex-1 sm:pl-14">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-2 sm:px-6">
             <MobileNav />
-            <SearchInput />
+            <SearchInput className="w-full max-w-[600px]" />
             <User />
           </header>
-          <main className="grid flex-1 items-start gap-2 p-4 sm:px-6 sm:py-0 md:gap-4 bg-muted/40">
+          <main className="flex-1 overflow-y-auto bg-muted/40">
             {children}
           </main>
         </div>
@@ -96,13 +97,13 @@ function DesktopNav() {
       <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
         <Tooltip>
           <TooltipTrigger asChild>
-            <Link
+            {/* <Link
               href="/settings"
               className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
             >
               <Settings className="h-5 w-5" />
               <span className="sr-only">Settings</span>
-            </Link>
+            </Link> */}
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>
         </Tooltip>
@@ -126,51 +127,49 @@ function MobileNav() {
           <span className="sr-only">Toggle Menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="sm:max-w-xs">
-        <nav className="grid gap-6 text-lg font-medium">
-          <Link
-            href="#"
-            className="group flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:text-base"
-          >
-            <Package2 className="h-5 w-5 transition-all group-hover:scale-110" />
-            <span className="sr-only">Vercel</span>
-          </Link>
-          <Link
-            href="#"
-            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-          >
-            <Home className="h-5 w-5" />
-            Dashboard
-          </Link>
-          <Link
-            href="#"
-            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-          >
-            <ShoppingCart className="h-5 w-5" />
-            Orders
-          </Link>
-          <Link
-            href="#"
-            className="flex items-center gap-4 px-2.5 text-foreground"
-          >
-            <Package className="h-5 w-5" />
-            Products
-          </Link>
-          <Link
-            href="#"
-            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-          >
-            <Users2 className="h-5 w-5" />
-            Customers
-          </Link>
-          <Link
-            href="#"
-            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-          >
-            <LineChart className="h-5 w-5" />
-            Settings
-          </Link>
-        </nav>
+      <SheetContent side="left" className="w-full max-w-[300px] p-0">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-primary rounded-full flex items-center justify-center">
+              <svg
+                className="h-6 w-6 text-primary-foreground"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
+                <circle cx="8" cy="8" r="2"/>
+                <circle cx="16" cy="8" r="2"/>
+                <circle cx="12" cy="16" r="2"/>
+              </svg>
+            </div>
+            <span className="text-xl font-semibold">Co Work Agent</span>
+          </div>
+          <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+        </div>
+
+        <div className="flex flex-col h-[calc(100vh-5rem)]">
+          <nav className="flex flex-col p-4">
+            <Link
+              href="/"
+              className="flex items-center gap-3 py-3 text-muted-foreground hover:text-foreground"
+            >
+              <Home className="h-5 w-5" />
+              <span className="text-base">Dashboard</span>
+            </Link>
+
+            <Link
+              href="/agent"
+              className="flex items-center gap-3 py-3 text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="h-5 w-5" />
+              <span className="text-base">Agent Settings</span>
+            </Link>
+          </nav>
+
+          <div className="mt-auto border-t">
+            <MobileLogoutButton />
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   );
