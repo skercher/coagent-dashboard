@@ -57,6 +57,8 @@ export default function AgentSettingsPage() {
   const [itemType, setItemType] = useState<'file' | 'url' | 'text'>('url');
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingItem, setEditingItem] = useState<KnowledgeBaseItem | null>(null);
+  const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
 
   const ELEVEN_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_API_KEY;
 
@@ -276,6 +278,77 @@ export default function AgentSettingsPage() {
     }
   }
 
+  function handleItemClick(item: KnowledgeBaseItem) {
+    setEditingItem(item);
+    setItemType(item.type as 'url' | 'file');
+    setInputValue(item.name);
+    setSheetMode('edit');
+    setIsSheetOpen(true);
+  }
+
+  async function handleUpdateItem() {
+    if (!selectedAgent || !editingItem || !inputValue || !ELEVEN_API_KEY) return;
+
+    setIsSubmitting(true);
+    try {
+      // Get current agent configuration
+      const agentResponse = await fetch(
+        `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
+        {
+          headers: {
+            'xi-api-key': ELEVEN_API_KEY,
+          }
+        }
+      );
+      const agentData = await agentResponse.json();
+      const currentKnowledgeBase = agentData.conversation_config.agent.prompt.knowledge_base || [];
+
+      // Update the item in the knowledge base
+      const updatedKnowledgeBase = currentKnowledgeBase.map(item => 
+        item.id === editingItem.id 
+          ? { ...item, name: inputValue.trim() }
+          : item
+      );
+
+      // Update agent configuration
+      const updateResponse = await fetch(
+        `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'xi-api-key': ELEVEN_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_config: {
+              agent: {
+                prompt: {
+                  knowledge_base: updatedKnowledgeBase
+                }
+              }
+            }
+          })
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.detail?.message || 'Failed to update item');
+      }
+
+      await fetchAgentDetails();
+      setIsSheetOpen(false);
+      setEditingItem(null);
+      setInputValue('');
+      setSheetMode('add');
+    } catch (error) {
+      console.error('Error updating item:', error);
+      alert(error instanceof Error ? error.message : 'Failed to update item');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4">
       <div className="flex items-center justify-between">
@@ -328,7 +401,11 @@ export default function AgentSettingsPage() {
             </div>
           ) : (
             knowledgeItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between p-2 border rounded-lg">
+              <div 
+                key={item.id} 
+                className="flex items-center justify-between p-2 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                onClick={() => handleItemClick(item)}
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium uppercase text-muted-foreground">
                     {item.type}
@@ -338,7 +415,10 @@ export default function AgentSettingsPage() {
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  onClick={() => handleDeleteItem(item.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteItem(item.id);
+                  }}
                 >
                   <X className="h-4 w-4" />
                 </Button>
@@ -348,11 +428,23 @@ export default function AgentSettingsPage() {
         </CardContent>
       </Card>
 
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+      <Sheet 
+        open={isSheetOpen} 
+        onOpenChange={(open) => {
+          setIsSheetOpen(open);
+          if (!open) {
+            setEditingItem(null);
+            setInputValue('');
+            setSheetMode('add');
+          }
+        }}
+      >
         <SheetContent className="w-[800px] sm:w-[600px]">
           <SheetHeader>
-            <SheetTitle>Add knowledge base item</SheetTitle>
-            <SheetDescription>Add a new item to the knowledge base</SheetDescription>
+            <SheetTitle>{sheetMode === 'add' ? 'Add' : 'Edit'} knowledge base item</SheetTitle>
+            <SheetDescription>
+              {sheetMode === 'add' ? 'Add a new item' : 'Update existing item'} in the knowledge base
+            </SheetDescription>
           </SheetHeader>
           <div className="flex flex-col gap-6 py-6">
             <div>
@@ -408,16 +500,16 @@ export default function AgentSettingsPage() {
             
             <Button 
               className="w-full" 
-              onClick={handleAddItem}
+              onClick={sheetMode === 'add' ? handleAddItem : handleUpdateItem}
               disabled={isSubmitting || !inputValue}
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
+                  {sheetMode === 'add' ? 'Adding...' : 'Updating...'}
                 </>
               ) : (
-                'Add to knowledge base'
+                sheetMode === 'add' ? 'Add to knowledge base' : 'Update item'
               )}
             </Button>
           </div>
