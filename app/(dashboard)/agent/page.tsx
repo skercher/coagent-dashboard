@@ -615,7 +615,10 @@ export default function AgentSettingsPage() {
           }
         }}
       >
-        <SheetContent className="w-[800px] sm:w-[600px]">
+        <SheetContent 
+          className="fixed right-0 w-full h-[100dvh] sm:w-[450px] p-0 sm:p-6 overflow-y-auto border-l"
+          side="right"
+        >          
           <SheetHeader>
             <SheetTitle>{sheetMode === 'add' ? 'Add' : 'Edit'} knowledge base item</SheetTitle>
             <SheetDescription>
