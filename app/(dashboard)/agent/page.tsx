@@ -290,7 +290,9 @@ export default function AgentSettingsPage() {
       const newItem = {
         id: documentId,
         type: 'file', // Always use 'file' type for both file and text uploads
-        name: itemType === 'text' ? `${inputValue}.txt` : 
+        name: itemType === 'text' ? 
+              // Use the input value directly without adding .txt
+              inputValue.toString() :
               itemType === 'file' && isFile(inputValue) ? inputValue.name : 
               typeof inputValue === 'string' ? inputValue.trim() :
               inputValue.name
@@ -461,7 +463,9 @@ export default function AgentSettingsPage() {
           ? {
               id: documentId,
               type: itemType === 'text' ? 'file' : itemType,
-              name: itemType === 'text' ? `${inputValue}.txt` :
+              name: itemType === 'text' ? 
+                    // Use the input value directly without adding .txt
+                    inputValue.toString() :
                     itemType === 'file' && isFile(inputValue) ? inputValue.name :
                     typeof inputValue === 'string' ? inputValue.trim() :
                     inputValue.name
@@ -518,7 +522,13 @@ export default function AgentSettingsPage() {
             Manage knowledge base items for your agents
           </p>
         </div>
-        <Button onClick={() => setIsSheetOpen(true)}>
+        <Button onClick={() => {
+          setItemType('file');
+          setInputValue('');
+          setTextContent('');
+          setSheetMode('add');
+          setIsSheetOpen(true);
+        }}>
           <Plus className="mr-2 h-4 w-4" />
           Add item
         </Button>
@@ -599,6 +609,8 @@ export default function AgentSettingsPage() {
           if (!open) {
             setEditingItem(null);
             setInputValue('');
+            setTextContent('');
+            setItemType('file');
             setSheetMode('add');
           }
         }}
