@@ -2,27 +2,20 @@
 
 import { Button } from '@/components/ui/button';
 import { LogOut } from 'lucide-react';
-import { createBrowserClient } from '../../../services/supabaseClient';
+import { supabase } from '../../../services/supabaseClient';
 
 export function LogoutButton() {
   const handleLogout = async () => {
     try {
-      const supabase = createBrowserClient();
-      
-      // Sign out from Supabase
       await supabase.auth.signOut();
       
-      // Clear cookies
+      // Clear cookies and redirect
       document.cookie.split(";").forEach((c) => {
         document.cookie = c
           .replace(/^ +/, "")
           .replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
       });
       
-      // Clear localStorage
-      localStorage.clear();
-      
-      // Hard redirect to login
       window.location.replace('/login');
     } catch (error) {
       console.error('Error signing out:', error);

@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { supabase } from '../../services/supabaseClient';
+
+// Add request tracking
+let isAuthenticating = false;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,9 +16,21 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Add render counting
+  useEffect(() => {
+    console.log('Login page rendered');
+  });
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (isAuthenticating || loading) {
+      return;
+    }
+    
     setLoading(true);
+    isAuthenticating = true;
     setError(null);
 
     const formData = new FormData(e.currentTarget);
@@ -42,13 +57,17 @@ export default function LoginPage() {
         if (error) throw error;
         
         // Set cookie and redirect
-        await fetch('/api/auth/login', {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ session: data.session })
         });
+        
+        if (!response.ok) {
+          throw new Error('Failed to set session cookie');
+        }
 
         router.push('/');
         router.refresh();
@@ -58,6 +77,7 @@ export default function LoginPage() {
       setError(error.message);
     } finally {
       setLoading(false);
+      isAuthenticating = false;
     }
   }
 
