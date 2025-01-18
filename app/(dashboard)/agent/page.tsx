@@ -48,6 +48,10 @@ interface KnowledgeBaseItem {
   id: string;
 }
 
+function isFile(value: any): value is File {
+  return value instanceof globalThis.File;
+}
+
 export default function AgentSettingsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
@@ -223,7 +227,7 @@ export default function AgentSettingsPage() {
         if (!response.ok) throw new Error(data.detail?.message || 'Failed to upload URL');
         documentId = data.id;
         
-      } else if (itemType === 'file' && inputValue instanceof File) {
+      } else if (itemType === 'file' && isFile(inputValue)) {
         const formData = new FormData();
         formData.append('file', inputValue);
         
@@ -336,32 +340,44 @@ export default function AgentSettingsPage() {
         setItemType('url');
         setInputValue(item.name);
       } else {
-        // Fetch item details to determine if it's text or file
-        const response = await fetch(
-          `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/knowledge-base/${item.id}`,
-          {
-            headers: {
-              'xi-api-key': ELEVEN_API_KEY!,
-            },
-          }
-        );
+        // Check file extension first
+        const fileExtensions = ['.pdf', '.docx', '.html', '.epub'];
+        const isFileType = fileExtensions.some(ext => item.name.toLowerCase().endsWith(ext));
         
-        const data = await response.json();
-        console.log('Item details:', data);
-
-        if (data.extracted_inner_html?.includes('<p>')) {
-          // If it contains HTML paragraphs, it's likely a text item
-          setItemType('text');
-          // Extract text content from HTML
-          const textContent = data.extracted_inner_html
-            .replace(/<[^>]*>/g, '') // Remove HTML tags
-            .trim();
-          setTextContent(textContent);
-          setInputValue(item.name.replace(/\.txt$/, ''));
-        } else {
+        if (isFileType) {
+          // If it's a known file type, go straight to file tab
           setItemType('file');
           setInputValue(item.name);
           setTextContent('');
+        } else {
+          // For other files, check content
+          const response = await fetch(
+            `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/knowledge-base/${item.id}`,
+            {
+              headers: {
+                'xi-api-key': ELEVEN_API_KEY!,
+              },
+            }
+          );
+          
+          const data = await response.json();
+          console.log('Item details:', data);
+
+          // Check if it's a text item by looking at the content
+          if (data.extracted_inner_html) {
+            // If it has extracted HTML content, it's likely a text item
+            setItemType('text');
+            const textContent = data.extracted_inner_html
+              .replace(/<[^>]*>/g, '')
+              .trim();
+            setTextContent(textContent);
+            setInputValue(item.name.replace(/\.txt$/, ''));
+          } else {
+            // It's a regular file
+            setItemType('file');
+            setInputValue(item.name);
+            setTextContent('');
+          }
         }
       }
 
@@ -374,10 +390,56 @@ export default function AgentSettingsPage() {
   }
 
   async function handleUpdateItem() {
-    if (!selectedAgent || !editingItem || !inputValue || !ELEVEN_API_KEY) return;
+    if (!selectedAgent || !editingItem || !ELEVEN_API_KEY) return;
 
     setIsSubmitting(true);
     try {
+      let documentId = editingItem.id;
+
+      // Handle different item types
+      if (itemType === 'file') {
+        if (isFile(inputValue)) {
+          // Upload new file
+          const formData = new FormData();
+          formData.append('file', inputValue);
+          
+          const response = await fetch(
+            `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/add-to-knowledge-base`,
+            {
+              method: 'POST',
+              headers: {
+                'xi-api-key': ELEVEN_API_KEY,
+              },
+              body: formData,
+            }
+          );
+          
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.detail?.message || 'Failed to upload file');
+          documentId = data.id;
+        }
+      } else if (itemType === 'text') {
+        // Handle text update
+        const formData = new FormData();
+        const textBlob = new Blob([textContent], { type: 'text/plain' });
+        formData.append('file', textBlob, `${inputValue}.txt`);
+        
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/add-to-knowledge-base`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': ELEVEN_API_KEY,
+            },
+            body: formData,
+          }
+        );
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || 'Failed to upload text');
+        documentId = data.id;
+      }
+
       // Get current agent configuration
       const agentResponse = await fetch(
         `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
@@ -390,10 +452,16 @@ export default function AgentSettingsPage() {
       const agentData = await agentResponse.json();
       const currentKnowledgeBase = agentData.conversation_config.agent.prompt.knowledge_base || [];
 
-      // Update the item in the knowledge base
+      // Update the knowledge base
       const updatedKnowledgeBase = currentKnowledgeBase.map(item => 
         item.id === editingItem.id 
-          ? { ...item, name: inputValue.trim() }
+          ? {
+              id: documentId,
+              type: itemType === 'text' ? 'file' : itemType,
+              name: itemType === 'text' ? `${inputValue}.txt` :
+                    itemType === 'file' && isFile(inputValue) ? inputValue.name :
+                    inputValue
+            }
           : item
       );
 
@@ -427,6 +495,7 @@ export default function AgentSettingsPage() {
       setIsSheetOpen(false);
       setEditingItem(null);
       setInputValue('');
+      setTextContent('');
       setSheetMode('add');
     } catch (error) {
       console.error('Error updating item:', error);
@@ -542,23 +611,26 @@ export default function AgentSettingsPage() {
               <label className="text-sm font-medium">Item type</label>
               <div className="flex gap-2 mt-1">
                 <Button 
-                  variant={itemType === 'file' ? 'default' : 'outline'}
+                  variant={itemType === 'file' ? 'default' : 'ghost'}
                   onClick={() => setItemType('file')}
                   size="icon"
+                  className="rounded-lg hover:bg-gray-100 border-0 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 >
                   <File className="h-4 w-4" />
                 </Button>
                 <Button 
-                  variant={itemType === 'url' ? 'default' : 'outline'}
+                  variant={itemType === 'url' ? 'default' : 'ghost'}
                   onClick={() => setItemType('url')}
                   size="icon"
+                  className="rounded-lg hover:bg-gray-100 border-0 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 >
                   <Link className="h-4 w-4" />
                 </Button>
                 <Button 
-                  variant={itemType === 'text' ? 'default' : 'outline'}
+                  variant={itemType === 'text' ? 'default' : 'ghost'}
                   onClick={() => setItemType('text')}
                   size="icon"
+                  className="rounded-lg hover:bg-gray-100 border-0 outline-none ring-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                 >
                   <FileText className="h-4 w-4" />
                 </Button>
@@ -580,9 +652,31 @@ export default function AgentSettingsPage() {
               {itemType === 'file' && (
                 <>
                   <label className="text-sm font-medium">File</label>
-                  <div className="space-y-2">
+                  <div className="space-y-4">
+                    {sheetMode === 'edit' && (
+                      <div className="text-sm text-muted-foreground">
+                        Current file: {editingItem?.name}
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col items-center justify-center w-full p-6 border-2 border-dashed rounded-lg hover:bg-gray-50 cursor-pointer"
+                      onClick={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()}
+                    >
+                      <File className="h-8 w-8 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        {sheetMode === 'edit' ? 'Upload new file' : 'Click or drag files to upload'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Maximum size: 21 MB
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Supported types: pdf, txt, docx, html, epub
+                      </p>
+                    </div>
+
                     <Input 
                       type="file" 
+                      className="hidden"
                       accept=".pdf,.txt,.docx,.html,.epub"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -597,9 +691,25 @@ export default function AgentSettingsPage() {
                         }
                       }}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Maximum size: 21 MB. Supported types: pdf, txt, docx, html, epub.
-                    </p>
+
+                    {isFile(inputValue) && (
+                      <div className="flex items-center gap-2 p-2 border rounded">
+                        <File className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm truncate">{inputValue.name}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="ml-auto"
+                          onClick={() => {
+                            setInputValue(sheetMode === 'edit' ? editingItem?.name || '' : '');
+                            const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
+                            if (fileInput) fileInput.value = '';
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
