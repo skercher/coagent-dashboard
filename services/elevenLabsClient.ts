@@ -1,12 +1,42 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+const isServer = typeof window === 'undefined';
+
+// Use the original environment variable names
 const ELEVEN_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_API_KEY;
 const ELEVENLABS_AGENT_ID = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
 
 if (!ELEVEN_API_KEY || !ELEVENLABS_AGENT_ID) {
-  throw new Error('Missing ElevenLabs environment variables');
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error('Missing ElevenLabs environment variables');
+  }
+  if (isServer) {
+    // Return dummy values during SSG
+    // @ts-ignore - This is intentional for SSG
+    global.elevenLabs = {
+      apiKey: '',
+      agentId: '',
+    };
+  }
+} else {
+  if (isServer) {
+    // @ts-ignore - This is intentional for SSG
+    global.elevenLabs = {
+      apiKey: ELEVEN_API_KEY,
+      agentId: ELEVENLABS_AGENT_ID,
+    };
+  }
 }
+
+// Export the values, preferring runtime environment variables on the client
+export const elevenLabs = isServer
+  ? // @ts-ignore - This is intentional for SSG
+    global.elevenLabs
+  : {
+      apiKey: ELEVEN_API_KEY,
+      agentId: ELEVENLABS_AGENT_ID,
+    };
 
 interface PaginationParams {
   cursor?: string;
@@ -30,7 +60,7 @@ export async function getConversations(page = 1, limit = 10, cursor?: string) {
       {
         method: 'GET',
         headers: {
-          'xi-api-key': ELEVEN_API_KEY as string,
+          'xi-api-key': elevenLabs.apiKey as string,
           'Content-Type': 'application/json',
         },
       }
@@ -54,7 +84,7 @@ export async function getConversationById(conversationId: string) {
       {
         method: 'GET',
         headers: {
-          'xi-api-key': ELEVEN_API_KEY as string,
+          'xi-api-key': elevenLabs.apiKey as string,
           'Content-Type': 'application/json',
         },
       }
@@ -78,7 +108,7 @@ export async function getAvailableAgents() {
       {
         method: 'GET',
         headers: {
-          'xi-api-key': ELEVEN_API_KEY as string,
+          'xi-api-key': elevenLabs.apiKey as string,
           'Content-Type': 'application/json',
         },
       }
@@ -102,7 +132,7 @@ export async function getConversationAudio(conversationId: string) {
       {
         method: 'GET',
         headers: {
-          'xi-api-key': ELEVEN_API_KEY as string,
+          'xi-api-key': elevenLabs.apiKey as string,
           'Content-Type': 'application/json',
         },
       }
