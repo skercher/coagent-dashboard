@@ -135,7 +135,7 @@ export default function AgentSettingsPage() {
       
       // Filter out the item to be deleted
       const currentKnowledgeBase = agentData.conversation_config.agent.prompt.knowledge_base || [];
-      const updatedKnowledgeBase = currentKnowledgeBase.filter(item => item.id !== itemId);
+      const updatedKnowledgeBase = currentKnowledgeBase.filter((item: KnowledgeBaseItem) => item.id !== itemId);
 
       // Update agent with filtered knowledge base
       const updateResponse = await fetch(
