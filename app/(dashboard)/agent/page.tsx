@@ -2,7 +2,7 @@
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, X, Loader2 } from "lucide-react";
+import { Plus, X, Loader2, Link, FileText, File } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import {
@@ -59,6 +59,7 @@ export default function AgentSettingsPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingItem, setEditingItem] = useState<KnowledgeBaseItem | null>(null);
   const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
+  const [textContent, setTextContent] = useState('');
 
   const ELEVEN_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_API_KEY;
 
@@ -176,22 +177,38 @@ export default function AgentSettingsPage() {
     }
   }
 
+  function validateFile(file: File): string | null {
+    const maxSize = 21 * 1024 * 1024; // 21MB in bytes
+    const supportedTypes = ['.pdf', '.txt', '.docx', '.html', '.epub'];
+    
+    if (file.size > maxSize) {
+      return 'File size exceeds 21MB limit';
+    }
+    
+    const extension = file.name.toLowerCase().match(/\.[^.]+$/)?.[0];
+    if (!extension || !supportedTypes.includes(extension)) {
+      return 'Unsupported file type. Please use: pdf, txt, docx, html, or epub';
+    }
+    
+    return null;
+  }
+
   async function handleAddItem() {
-    if (!selectedAgent || !inputValue || !ELEVEN_API_KEY) return;
+    if (!selectedAgent || !ELEVEN_API_KEY) return;
 
     setIsSubmitting(true);
     try {
+      let documentId;
+
       if (itemType === 'url') {
         if (!isValidUrl(inputValue)) {
           throw new Error('Please enter a valid URL starting with http:// or https://');
         }
 
-        // Step 1: Create knowledge base document
         const formData = new FormData();
         formData.append('url', inputValue.trim());
-
-        console.log('Step 1: Creating document with URL:', inputValue.trim());
-        const uploadResponse = await fetch(
+        
+        const response = await fetch(
           `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/add-to-knowledge-base`,
           {
             method: 'POST',
@@ -201,75 +218,108 @@ export default function AgentSettingsPage() {
             body: formData,
           }
         );
-
-        const uploadData = await uploadResponse.json();
-        console.log('Upload response:', uploadData);
-
-        if (!uploadResponse.ok) {
-          console.error('Upload error:', uploadData);
-          throw new Error(uploadData.detail?.message || 'Failed to upload document');
-        }
-
-        const documentId = uploadData.id;
-        console.log('Document created:', documentId);
-
-        // Get current agent configuration first
-        const agentResponse = await fetch(
-          `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
-          {
-            headers: {
-              'xi-api-key': ELEVEN_API_KEY,
-            }
-          }
-        );
-        const agentData = await agentResponse.json();
-        const currentKnowledgeBase = agentData.conversation_config.agent.prompt.knowledge_base || [];
-
-        // Step 2: Update agent configuration with combined knowledge base
-        console.log('Step 2: Updating agent configuration...');
-        const updateResponse = await fetch(
-          `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
-          {
-            method: 'PATCH',
-            headers: {
-              'xi-api-key': ELEVEN_API_KEY,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              conversation_config: {
-                agent: {
-                  prompt: {
-                    knowledge_base: [
-                      ...currentKnowledgeBase,
-                      {
-                        id: documentId,
-                        type: 'url',
-                        name: inputValue.trim()
-                      }
-                    ]
-                  }
-                }
-              }
-            })
-          }
-        );
-
-        if (!updateResponse.ok) {
-          const errorData = await updateResponse.json();
-          console.error('Agent update error:', errorData);
-          throw new Error(errorData.detail?.message || 'Failed to update agent');
-        }
-
-        console.log('Agent updated successfully');
-        await fetchAgentDetails();
-        setIsSheetOpen(false);
-        setInputValue('');
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || 'Failed to upload URL');
+        documentId = data.id;
+        
       } else if (itemType === 'file' && inputValue instanceof File) {
-        // Handle file upload similarly
         const formData = new FormData();
         formData.append('file', inputValue);
-        // ... rest of file upload logic
+        
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/add-to-knowledge-base`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': ELEVEN_API_KEY,
+            },
+            body: formData,
+          }
+        );
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || 'Failed to upload file');
+        documentId = data.id;
+        
+      } else if (itemType === 'text') {
+        if (!inputValue || !textContent) {
+          throw new Error('Please provide both text name and content');
+        }
+
+        const formData = new FormData();
+        const textBlob = new Blob([textContent], { type: 'text/plain' });
+        formData.append('file', textBlob, `${inputValue}.txt`);
+        
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/add-to-knowledge-base`,
+          {
+            method: 'POST',
+            headers: {
+              'xi-api-key': ELEVEN_API_KEY,
+            },
+            body: formData,
+          }
+        );
+        
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail?.message || 'Failed to upload text');
+        documentId = data.id;
       }
+
+      if (!documentId) throw new Error('Failed to create document');
+
+      // Step 2: Update agent configuration
+      const agentResponse = await fetch(
+        `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
+        {
+          headers: {
+            'xi-api-key': ELEVEN_API_KEY,
+          }
+        }
+      );
+      const agentData = await agentResponse.json();
+      const currentKnowledgeBase = agentData.conversation_config.agent.prompt.knowledge_base || [];
+
+      const newItem = {
+        id: documentId,
+        type: 'file', // Always use 'file' type for both file and text uploads
+        name: itemType === 'text' ? `${inputValue}.txt` : 
+              itemType === 'file' ? (inputValue as File).name : 
+              inputValue.trim()
+      };
+
+      const updateResponse = await fetch(
+        `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'xi-api-key': ELEVEN_API_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_config: {
+              agent: {
+                prompt: {
+                  knowledge_base: [
+                    ...currentKnowledgeBase,
+                    newItem
+                  ]
+                }
+              }
+            }
+          })
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.detail?.message || 'Failed to update agent');
+      }
+
+      await fetchAgentDetails();
+      setIsSheetOpen(false);
+      setInputValue('');
     } catch (error) {
       console.error('Error adding item:', error);
       alert(error instanceof Error ? error.message : 'Failed to add item');
@@ -278,12 +328,49 @@ export default function AgentSettingsPage() {
     }
   }
 
-  function handleItemClick(item: KnowledgeBaseItem) {
+  async function handleItemClick(item: KnowledgeBaseItem) {
     setEditingItem(item);
-    setItemType(item.type as 'url' | 'file');
-    setInputValue(item.name);
-    setSheetMode('edit');
-    setIsSheetOpen(true);
+    
+    try {
+      if (item.type === 'url') {
+        setItemType('url');
+        setInputValue(item.name);
+      } else {
+        // Fetch item details to determine if it's text or file
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}/knowledge-base/${item.id}`,
+          {
+            headers: {
+              'xi-api-key': ELEVEN_API_KEY!,
+            },
+          }
+        );
+        
+        const data = await response.json();
+        console.log('Item details:', data);
+
+        if (data.extracted_inner_html?.includes('<p>')) {
+          // If it contains HTML paragraphs, it's likely a text item
+          setItemType('text');
+          // Extract text content from HTML
+          const textContent = data.extracted_inner_html
+            .replace(/<[^>]*>/g, '') // Remove HTML tags
+            .trim();
+          setTextContent(textContent);
+          setInputValue(item.name.replace(/\.txt$/, ''));
+        } else {
+          setItemType('file');
+          setInputValue(item.name);
+          setTextContent('');
+        }
+      }
+
+      setSheetMode('edit');
+      setIsSheetOpen(true);
+    } catch (error) {
+      console.error('Error fetching item details:', error);
+      alert('Failed to load item details');
+    }
   }
 
   async function handleUpdateItem() {
@@ -407,9 +494,13 @@ export default function AgentSettingsPage() {
                 onClick={() => handleItemClick(item)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium uppercase text-muted-foreground">
-                    {item.type}
-                  </span>
+                  {item.type === 'url' ? (
+                    <Link className="h-4 w-4 text-muted-foreground" />
+                  ) : item.name.endsWith('.txt') ? (
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <File className="h-4 w-4 text-muted-foreground" />
+                  )}
                   <span className="text-sm truncate max-w-[600px]">{item.name}</span>
                 </div>
                 <Button 
@@ -453,20 +544,23 @@ export default function AgentSettingsPage() {
                 <Button 
                   variant={itemType === 'file' ? 'default' : 'outline'}
                   onClick={() => setItemType('file')}
+                  size="icon"
                 >
-                  File
+                  <File className="h-4 w-4" />
                 </Button>
                 <Button 
                   variant={itemType === 'url' ? 'default' : 'outline'}
                   onClick={() => setItemType('url')}
+                  size="icon"
                 >
-                  URL
+                  <Link className="h-4 w-4" />
                 </Button>
                 <Button 
                   variant={itemType === 'text' ? 'default' : 'outline'}
                   onClick={() => setItemType('text')}
+                  size="icon"
                 >
-                  Text
+                  <FileText className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -486,17 +580,52 @@ export default function AgentSettingsPage() {
               {itemType === 'file' && (
                 <>
                   <label className="text-sm font-medium">File</label>
-                  <Input 
-                    type="file" 
-                    accept=".txt,.pdf,.doc,.docx"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setInputValue(file);
-                    }}
-                  />
+                  <div className="space-y-2">
+                    <Input 
+                      type="file" 
+                      accept=".pdf,.txt,.docx,.html,.epub"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const error = validateFile(file);
+                          if (error) {
+                            alert(error);
+                            e.target.value = ''; // Clear the input
+                            return;
+                          }
+                          setInputValue(file);
+                        }
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Maximum size: 21 MB. Supported types: pdf, txt, docx, html, epub.
+                    </p>
+                  </div>
                 </>
               )}
             </div>
+            
+            {itemType === 'text' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Text Name</label>
+                  <Input 
+                    placeholder="Enter a name for your text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Text Content</label>
+                  <textarea
+                    className="w-full min-h-[200px] p-2 border rounded-md"
+                    placeholder="Enter your text content here"
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
             
             <Button 
               className="w-full" 
