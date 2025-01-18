@@ -2,17 +2,19 @@ import './globals.css';
 
 import { Analytics } from '@vercel/analytics/react';
 import { Toaster } from 'sonner';
+import { Metadata, Viewport } from 'next';
 
-export const metadata = {
-  title: 'Co Work Agent Dashboard',
-  description:
-    'A user admin dashboard for Co Work Agent AI',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false
-  }
+export const metadata: Metadata = {
+  title: {
+    template: '%s | CoAgent',
+    default: 'CoAgent'
+  },
+  description: 'Your AI-powered conversation platform'
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1
 };
 
 export default function RootLayout({
@@ -22,9 +24,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-      </head>
       <body className="flex min-h-screen w-full flex-col">
         {children}
         <Toaster position="top-center" />

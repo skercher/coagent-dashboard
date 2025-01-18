@@ -59,7 +59,7 @@ export default function AgentSettingsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [knowledgeItems, setKnowledgeItems] = useState<KnowledgeBaseItem[]>([]);
   const [itemType, setItemType] = useState<'file' | 'url' | 'text'>('url');
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState<string | File>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingItem, setEditingItem] = useState<KnowledgeBaseItem | null>(null);
   const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
@@ -172,9 +172,11 @@ export default function AgentSettingsPage() {
     }
   }
 
-  function isValidUrl(urlString: string) {
+  function isValidUrl(value: string | File): boolean {
+    if (typeof value !== 'string') return false;
+    
     try {
-      const url = new URL(urlString);
+      const url = new URL(value);
       return url.protocol === 'http:' || url.protocol === 'https:';
     } catch {
       return false;
@@ -205,7 +207,7 @@ export default function AgentSettingsPage() {
       let documentId;
 
       if (itemType === 'url') {
-        if (!isValidUrl(inputValue)) {
+        if (typeof inputValue !== 'string' || !isValidUrl(inputValue)) {
           throw new Error('Please enter a valid URL starting with http:// or https://');
         }
 
@@ -289,8 +291,9 @@ export default function AgentSettingsPage() {
         id: documentId,
         type: 'file', // Always use 'file' type for both file and text uploads
         name: itemType === 'text' ? `${inputValue}.txt` : 
-              itemType === 'file' ? (inputValue as File).name : 
-              inputValue.trim()
+              itemType === 'file' && isFile(inputValue) ? inputValue.name : 
+              typeof inputValue === 'string' ? inputValue.trim() :
+              inputValue.name
       };
 
       const updateResponse = await fetch(
@@ -453,14 +456,15 @@ export default function AgentSettingsPage() {
       const currentKnowledgeBase = agentData.conversation_config.agent.prompt.knowledge_base || [];
 
       // Update the knowledge base
-      const updatedKnowledgeBase = currentKnowledgeBase.map(item => 
+      const updatedKnowledgeBase = currentKnowledgeBase.map((item: KnowledgeBaseItem) => 
         item.id === editingItem.id 
           ? {
               id: documentId,
               type: itemType === 'text' ? 'file' : itemType,
               name: itemType === 'text' ? `${inputValue}.txt` :
                     itemType === 'file' && isFile(inputValue) ? inputValue.name :
-                    inputValue
+                    typeof inputValue === 'string' ? inputValue.trim() :
+                    inputValue.name
             }
           : item
       );
@@ -643,7 +647,7 @@ export default function AgentSettingsPage() {
                   <label className="text-sm font-medium">URL</label>
                   <Input 
                     placeholder="https://example.com" 
-                    value={inputValue}
+                    value={typeof inputValue === 'string' ? inputValue : ''}
                     onChange={(e) => setInputValue(e.target.value)}
                   />
                 </>
@@ -721,7 +725,7 @@ export default function AgentSettingsPage() {
                   <label className="text-sm font-medium">Text Name</label>
                   <Input 
                     placeholder="Enter a name for your text"
-                    value={inputValue}
+                    value={typeof inputValue === 'string' ? inputValue : ''}
                     onChange={(e) => setInputValue(e.target.value)}
                   />
                 </div>
