@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Play } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { X } from 'lucide-react';
+import { supabase } from '../../services/supabaseClient';
 
 interface Message {
   role: string;
@@ -24,6 +25,8 @@ interface ConversationDetails {
   agent: string;
   conversation_id: string;
   status: string;
+  caller_name: string;
+  caller_number: string;
   transcript: Message[];
   metadata: {
     start_time_unix_secs: number;
@@ -49,7 +52,21 @@ interface Conversation {
   duration: string;
   status: string;
   success: string;
+  caller_number: string;
+  caller_name: string;
 }
+
+const formatPhoneNumber = (phoneNumber: string) => {
+  if (!phoneNumber || phoneNumber === 'Unknown') return 'Unknown';
+  // Remove all non-digits
+  const cleaned = phoneNumber.replace(/\D/g, '');
+  // Format as (XXX) XXX-XXXX
+  const match = cleaned.match(/^(\d{1})(\d{3})(\d{3})(\d{4})$/);
+  if (match) {
+    return `(${match[2]}) ${match[3]}-${match[4]}`;
+  }
+  return phoneNumber;
+};
 
 export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -106,19 +123,40 @@ export default function ChatPage() {
       const data = await getConversations(pageNum, 15, pageNum === 1 ? undefined : cursor);
       const newConversations = data?.conversations || [];
       
-      const formattedConversations = newConversations.map((conv: any) => ({
-        id: conv.conversation_id || '',
-        date: conv.start_time_unix_secs 
-          ? new Date(conv.start_time_unix_secs * 1000).toLocaleString() 
-          : 'Unknown date',
-        agent: conv.agent_name || 'AI Agent',
-        messages: conv.message_count || 0,
-        duration: conv.call_duration_secs 
-          ? `${Math.floor(conv.call_duration_secs / 60)}:${(conv.call_duration_secs % 60).toString().padStart(2, '0')}` 
-          : '0:00',
-        status: conv.status || 'Unknown',
-        success: conv.call_successful || 'unknown'
-      }));
+      // Fetch caller details from Supabase
+      const conversationIds = newConversations.map((conv: any) => conv.conversation_id);
+      const { data: callerDetails } = await supabase
+        .from('conversations')
+        .select('conversation_id, caller_number, caller_name')
+        .in('conversation_id', conversationIds);
+
+      // Create a map of caller details
+      const callerMap = (callerDetails || []).reduce((acc: any, curr: any) => {
+        acc[curr.conversation_id] = {
+          caller_number: curr.caller_number,
+          caller_name: curr.caller_name
+        };
+        return acc;
+      }, {});
+      
+      const formattedConversations = newConversations.map((conv: any) => {
+        const callerInfo = callerMap[conv.conversation_id] || {};
+        return {
+          id: conv.conversation_id || '',
+          date: conv.start_time_unix_secs 
+            ? new Date(conv.start_time_unix_secs * 1000).toLocaleString() 
+            : 'Unknown date',
+          agent: conv.agent_name || 'AI Agent',
+          messages: conv.message_count || 0,
+          duration: conv.call_duration_secs 
+            ? `${Math.floor(conv.call_duration_secs / 60)}:${(conv.call_duration_secs % 60).toString().padStart(2, '0')}` 
+            : '0:00',
+          status: conv.status || 'Unknown',
+          success: conv.call_successful || 'unknown',
+          caller_number: callerInfo.caller_number || 'Unknown',
+          caller_name: callerInfo.caller_name || 'Unknown'
+        };
+      });
 
       if (pageNum === 1) {
         setConversations(formattedConversations);
@@ -178,9 +216,18 @@ export default function ChatPage() {
       
       if (!response.ok) throw new Error(data.error);
       
+      // Get caller details from Supabase
+      const { data: callerDetails } = await supabase
+        .from('conversations')
+        .select('caller_number, caller_name')
+        .eq('conversation_id', chatId)
+        .single();
+      
       setSelectedChat({
         ...data,
-        agent: agentName
+        agent: agentName,
+        caller_name: callerDetails?.caller_name || 'Unknown',
+        caller_number: callerDetails?.caller_number || 'Unknown'
       });
       setIsSheetOpen(true);
     } catch (err) {
@@ -262,24 +309,25 @@ export default function ChatPage() {
                     className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer gap-2 sm:gap-4 w-full"
                     onClick={() => handleChatSelect(chat.id, chat.agent)}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <div>
-                        <p className="font-medium text-sm sm:text-base">{chat.date}</p>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{chat.agent}</p>
+                    <div className="flex flex-col gap-1">
+                      <p className="font-medium text-sm sm:text-base">{chat.date}</p>
+                      <p className="text-sm text-muted-foreground">{chat.agent}</p>
+                      <div className="flex items-center gap-2 text-sm">
+                        {chat.caller_name !== 'Unknown' && (
+                          <>
+                            <span className="font-medium">{chat.caller_name}</span>
+                            <span className="text-muted-foreground">•</span>
+                          </>
+                        )}
+                        <span className="font-medium font-mono">
+                          {formatPhoneNumber(chat.caller_number)}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span>{chat.messages} messages</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span>{chat.duration}</span>
-                      </div>
-                      <span className={`text-xs sm:text-sm font-medium ${
-                        chat.success === 'success' ? 'text-green-500' : 'text-red-500'
-                      }`}>
-                        {chat.status}
-                      </span>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>{chat.messages} messages</span>
+                      <span>•</span>
+                      <span>{chat.duration}</span>
                     </div>
                   </div>
                 ))
@@ -334,6 +382,22 @@ export default function ChatPage() {
                       {selectedChat.agent}
                     </p>
 
+                    {selectedChat.caller_name !== 'Unknown' && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Caller</p>
+                        <p className="font-medium">
+                          {selectedChat.caller_name}
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium font-mono">
+                        {formatPhoneNumber(selectedChat.caller_number)}
+                      </p>
+                    </div>
+
                     <div>
                       <p className="text-sm text-muted-foreground">Date</p>
                       <p className="font-medium">
@@ -349,20 +413,19 @@ export default function ChatPage() {
                       </p>
                     </div>
 
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Call Duration</p>
-                        <p className="font-medium">
-                          {Math.floor(selectedChat.metadata.call_duration_secs / 60)}:
-                          {(selectedChat.metadata.call_duration_secs % 60)
-                            .toString()
-                            .padStart(2, '0')}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Cost (credits)</p>
-                        <p className="font-medium">{selectedChat.metadata.cost}</p>
-                      </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Call Duration</p>
+                      <p className="font-medium">
+                        {Math.floor(selectedChat.metadata.call_duration_secs / 60)}:
+                        {(selectedChat.metadata.call_duration_secs % 60)
+                          .toString()
+                          .padStart(2, '0')}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cost (credits)</p>
+                      <p className="font-medium">{selectedChat.metadata.cost}</p>
                     </div>
                   </div>
 
