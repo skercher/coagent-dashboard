@@ -19,7 +19,8 @@
     "pretty": true,
     "paths": {
       "@/components/*": ["components/*"],
-      "@/lib/*": ["lib/*"]
+      "@/lib/*": ["lib/*"],
+      "@/services/*": ["services/*"]
     },
     "plugins": [
       {

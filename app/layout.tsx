@@ -1,20 +1,22 @@
 import './globals.css';
 
 import { Analytics } from '@vercel/analytics/react';
-import { Toaster } from 'sonner';
 import { Metadata, Viewport } from 'next';
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | CoAgent',
-    default: 'CoAgent'
+    template: '%s | Coagent',
+    default: 'Coagent',
   },
-  description: 'Your AI-powered conversation platform'
+  description: 'AI Agents for your business',
 };
 
 export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
 };
 
 export default function RootLayout({
@@ -23,10 +25,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="flex min-h-screen w-full flex-col">
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen bg-background font-sans antialiased">
         {children}
-        <Toaster position="top-center" />
+        <Toaster />
         <Analytics />
       </body>
     </html>

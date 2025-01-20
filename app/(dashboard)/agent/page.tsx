@@ -19,6 +19,8 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { useToast } from "@/components/ui/use-toast";
+import { getAgentSettings, upsertAgentSettings } from '@/services/agentSettingsService';
 
 interface Agent {
   agent_id: string;
@@ -53,6 +55,8 @@ function isFile(value: any): value is File {
 }
 
 export default function AgentSettingsPage() {
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -64,7 +68,9 @@ export default function AgentSettingsPage() {
   const [editingItem, setEditingItem] = useState<KnowledgeBaseItem | null>(null);
   const [sheetMode, setSheetMode] = useState<'add' | 'edit'>('add');
   const [textContent, setTextContent] = useState('');
-
+  const [firstMessage, setFirstMessage] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const ELEVEN_API_KEY = process.env.NEXT_PUBLIC_ELEVEN_API_KEY;
 
   async function fetchAgentDetails() {
@@ -117,6 +123,36 @@ export default function AgentSettingsPage() {
       fetchAgentDetails();
     }
   }, [selectedAgent]);
+
+  useEffect(() => {
+    async function fetchSettings() {
+      if (!selectedAgent) return;
+      
+      try {
+        const settings = await getAgentSettings(selectedAgent);
+        if (settings) {
+          setFirstMessage(settings.first_message || '');
+          setSystemPrompt(settings.system_prompt || '');
+          setWebsiteUrl(settings.website_url || '');
+        } else {
+          // Reset form if no settings found
+          setFirstMessage('');
+          setSystemPrompt('');
+          setWebsiteUrl('');
+        }
+      } catch (error) {
+        console.error('Error fetching agent settings:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load agent settings",
+          duration: 3000
+        });
+      }
+    }
+    
+    fetchSettings();
+  }, [selectedAgent, toast]);
 
   async function handleDeleteItem(itemId: string) {
     if (!selectedAgent || !ELEVEN_API_KEY) return;
@@ -513,33 +549,54 @@ export default function AgentSettingsPage() {
     }
   }
 
+  async function handleSaveSettings() {
+    if (!selectedAgent) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select an agent first",
+        duration: 3000
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await upsertAgentSettings({
+        agent_id: selectedAgent,
+        first_message: firstMessage,
+        system_prompt: systemPrompt,
+        website_url: websiteUrl
+      });
+
+      toast({
+        variant: "success",
+        title: "Success",
+        description: "Agent settings saved successfully",
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Error saving agent settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save agent settings",
+        duration: 3000
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Knowledge base</h1>
-          <p className="text-muted-foreground">
-            Manage knowledge base items for your agents
-          </p>
-        </div>
-        <Button onClick={() => {
-          setItemType('file');
-          setInputValue('');
-          setTextContent('');
-          setSheetMode('add');
-          setIsSheetOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add item
-        </Button>
-      </div>
-
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">Agent Settings</h1>
         <Select 
           value={selectedAgent} 
           onValueChange={setSelectedAgent}
         >
-          <SelectTrigger className="w-[300px]">
+          <SelectTrigger className="w-[250px]">
             <SelectValue placeholder="Select an agent" />
           </SelectTrigger>
           <SelectContent>
@@ -555,52 +612,126 @@ export default function AgentSettingsPage() {
         </Select>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Knowledge Base Items</CardTitle>
-          <CardDescription>Current knowledge base sources</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Configuration</CardTitle>
+            <CardDescription>Configure your AI agent's behavior</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">First Message</label>
+              <Input
+                placeholder="Enter the first message your agent will say..."
+                value={firstMessage}
+                onChange={(e) => setFirstMessage(e.target.value)}
+                className="mt-1"
+              />
             </div>
-          ) : knowledgeItems.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No items in knowledge base
+            
+            <div>
+              <label className="text-sm font-medium">System Prompt</label>
+              <Input
+                placeholder="Enter the system prompt..."
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                className="mt-1"
+              />
             </div>
-          ) : (
-            knowledgeItems.map((item) => (
-              <div 
-                key={item.id} 
-                className="flex items-center justify-between p-2 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                onClick={() => handleItemClick(item)}
+
+            <div>
+              <label className="text-sm font-medium">Website URL</label>
+              <Input
+                placeholder="Enter your website URL..."
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button 
+                size="sm"
+                onClick={handleSaveSettings}
+                disabled={isSaving || !selectedAgent}
               >
-                <div className="flex items-center gap-2">
-                  {item.type === 'url' ? (
-                    <Link className="h-4 w-4 text-muted-foreground" />
-                  ) : item.name.endsWith('.txt') ? (
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <File className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className="text-sm truncate max-w-[600px]">{item.name}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteItem(item.id);
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Knowledge Base</CardTitle>
+              <CardDescription>Manage knowledge base items</CardDescription>
+            </div>
+            <Button 
+              size="sm"
+              onClick={() => {
+                setItemType('file');
+                setInputValue('');
+                setTextContent('');
+                setSheetMode('add');
+                setIsSheetOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add item
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+            ) : knowledgeItems.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No items in knowledge base
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {knowledgeItems.map((item) => (
+                  <div 
+                    key={item.id} 
+                    className="flex items-center justify-between p-2 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleItemClick(item)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {item.type === 'url' ? (
+                        <Link className="h-4 w-4 text-muted-foreground" />
+                      ) : item.name.endsWith('.txt') ? (
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <File className="h-4 w-4 text-muted-foreground" />
+                      )}
+                      <span className="text-sm truncate max-w-[300px]">{item.name}</span>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteItem(item.id);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Sheet 
         open={isSheetOpen} 
