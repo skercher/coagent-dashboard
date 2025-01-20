@@ -563,12 +563,40 @@ export default function AgentSettingsPage() {
 
     setIsSaving(true);
     try {
+      // Save to our database
       await upsertAgentSettings({
         agent_id: selectedAgent,
         first_message: firstMessage,
         system_prompt: systemPrompt,
         website_url: websiteUrl
       });
+
+      // Update Eleven Labs agent configuration
+      const updateResponse = await fetch(
+        `https://api.elevenlabs.io/v1/convai/agents/${selectedAgent}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'xi-api-key': ELEVEN_API_KEY!,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            conversation_config: {
+              agent: {
+                prompt: {
+                  prompt: systemPrompt,
+                },
+                first_message: firstMessage,
+              }
+            }
+          })
+        }
+      );
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.detail?.message || 'Failed to update agent configuration');
+      }
 
       toast({
         variant: "success",
@@ -581,7 +609,7 @@ export default function AgentSettingsPage() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to save agent settings",
+        description: error instanceof Error ? error.message : "Failed to save agent settings",
         duration: 3000
       });
     } finally {
