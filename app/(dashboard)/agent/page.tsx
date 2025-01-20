@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, X, Loader2, Link, FileText, File } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -631,11 +632,11 @@ export default function AgentSettingsPage() {
             
             <div>
               <label className="text-sm font-medium">System Prompt</label>
-              <Input
+              <Textarea
                 placeholder="Enter the system prompt..."
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
-                className="mt-1"
+                className="mt-1 min-h-[120px] resize-y"
               />
             </div>
 
